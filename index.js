@@ -14,11 +14,16 @@ const shakrAPI = new ShakrAPI({
     client_secret: process.env.SHAKR_CLIENT_SECRET
 });
 
-app.use(express.raw());
+app.use(express.text({ 'type': '*/*' }));
 app.use((req, res, next) => {
-    // express.raw() returns empty object ({}) when body is empty or invalid
-    req.body_str = Buffer.isBuffer(req.body) ? req.body.toString() : "";
-    req.body_json = Buffer.isBuffer(req.body) ? JSON.parse(req.body_str) : {};
+    // express.text() returns empty object ({}) when body is empty or invalid
+    req.body_str = (typeof req.body === "string") ? req.body : "";
+
+    try {
+        req.body_json = JSON.parse(req.body_str);
+    } catch(_e) {
+        req.body_json = {};
+    }
 
     next();
 });
@@ -44,19 +49,21 @@ app.post('/api/videos', async (req, res) => {
 app.post('/api/videos/webhook', async (req, res) => {
     const signature = req.get('X-Shakr-Signature');
 
-    const body_str = req.body === {} ? undefined : req.body.toString();
+    console.log(signature);
+    console.log(req);
+    console.log(req.body_str);
 
     if(
         signature === undefined ||
-        body_str === undefined ||
-        !shakrAPI.verifySignature(signature, body_str)
+        req.body_str === "" ||
+        !shakrAPI.verifySignature(signature, req.body_str)
     ) {
         console.log('Webhook signature validation failed');
         res.status(200).send();
         return;
     }
 
-    const { video_id, event, output_url } = req.body;
+    const { video_id, event, output_url } = req.body_json;
 
     if(event === 'finish') {
         console.log(`Received finish event for video ${video_id}`);
