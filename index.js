@@ -14,6 +14,8 @@ const shakrAPI = new ShakrAPI({
     client_secret: process.env.SHAKR_CLIENT_SECRET
 });
 
+
+// Pare body as raw text for webhook signature calculation
 app.use(express.text({ 'type': '*/*' }));
 app.use((req, res, next) => {
     // express.text() returns empty object ({}) when body is empty or invalid
