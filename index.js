@@ -14,17 +14,27 @@ const shakrAPI = new ShakrAPI({
     client_secret: process.env.SHAKR_CLIENT_SECRET
 });
 
-app.use(express.text({ type: '*/*' }));
+// Store raw body for webhook signature calculation
+// Naive implementation; not intended for production use
+app.use((req, res, next) => {
+    var data = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => data += chunk);
+    req.on('end', () => req.rawBody = data);
+    next();
+});
+
+app.use(express.json());
 
 app.get('/', async (req, res) => {
     res.status(200).send('Hello World!');
 });
 
 app.post('/api/videos', async (req, res) => {
-    const json_body = JSON.parse(req.body);
+    console.log(req.body);
 
     const video_id = await shakrAPI.createVideo(
-        SHAKR_TEMPLATE_STYLE_VERSION_ID,
+        process.env.SHAKR_TEMPLATE_STYLE_VERSION_ID,
         req.body
     );
 
@@ -38,20 +48,22 @@ app.post('/api/videos', async (req, res) => {
 app.post('/api/videos/webhook', async (req, res) => {
     const signature = req.get('X-Shakr-Signature');
 
-    if(!shakrAPI.verifySignature(signature, req.body)) {
+    if(!shakrAPI.verifySignature(signature, req.body_raw || '')) {
         console.log('Webhook signature validation failed');
         res.status(422).send();
         return;
     }
 
-    const json_body = JSON.parse(req.body);
-    const { video_id, event, output_url } = json_body;
+    const { video_id, event, output_url } = req.body;
 
     if(event === 'finish') {
+        console.log(`Received finish event for video ${video_id}`);
         // TODO: Video is successfully rendered, handle completion
     } else if(event === 'fail') {
+        console.log(`Received fail event for video ${video_id}`);
         // TODO: Video rendering failed, handle failure
     } else {
+        console.log('Received unknown webhook');
         // TODO: Skip processing for unknown events
     }
 
