@@ -53,7 +53,7 @@ app.post('/api/videos/webhook', async (req, res) => {
 
     if(
         signature === undefined ||
-        req.raw_body === "" ||
+        req.raw_body === '' ||
         !shakrAPI.verifySignature(signature, req.raw_body)
     ) {
         console.log('Webhook signature validation failed');
