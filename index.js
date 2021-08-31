@@ -21,16 +21,17 @@ app.get('/', async (req, res) => {
 });
 
 app.post('/api/videos', async (req, res) => {
+    const json_body = JSON.parse(req.body);
+
     const video_id = await shakrAPI.createVideo(
         SHAKR_TEMPLATE_STYLE_VERSION_ID,
         req.body
     );
 
+    // Persist video_id to your database for validation
+    // when webhook from Shakr is delivered to your
+    // desired endpoint.
     res.json({ video_id: video_id });
-});
-
-require('https').createServer(options, app).listen(port, () => {
-    console.log(`HTTPS server started at https://localhost:${port}`);
 });
 
 app.post('/api/videos/webhook', async (req, res) => {
@@ -38,8 +39,26 @@ app.post('/api/videos/webhook', async (req, res) => {
 
     if(!shakrAPI.verifySignature(signature, req.body)) {
         console.log('Webhook signature validation failed');
-        return res.status(422).send();
+        res.status(422).send();
+        return;
     }
 
-    res.status(200).send('bye');
+    const json_body = JSON.parse(req.body);
+    const { video_id, event, output_url } = json_body;
+
+    if(event === 'finish') {
+        // Video is successfully rendered, handle completion
+    } else if(event === 'fail') {
+        // Video rendering failed, handle failure
+    } else {
+        // Skip processing for unknown events
+    }
+
+    res.status(200).send();
 });
+
+require('https').createServer(options, app).listen(port, () => {
+    console.log(`HTTPS server started at https://localhost:${port}`);
+});
+
+
