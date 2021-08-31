@@ -20,7 +20,7 @@ const shakrAPI = new ShakrAPI({
 // Pare body as raw text for webhook signature calculation
 app.use(express.json({
     verify: (req, _, buffer, encoding) => {
-        if (!req.headers[SHAKR_RENDER_CALLBACK_SIGNATURE_HEADER]) {
+        if (!req.get(SHAKR_RENDER_CALLBACK_SIGNATURE_HEADER)) {
             return;
         }
 
@@ -52,8 +52,8 @@ app.post('/api/videos/webhook', async (req, res) => {
     const signature = req.get(SHAKR_RENDER_CALLBACK_SIGNATURE_HEADER);
 
     if(
-        signature === undefined ||
-        req.raw_body === '' ||
+        !signature ||
+        !req.raw_body ||
         !shakrAPI.verifySignature(signature, req.raw_body)
     ) {
         console.log('Webhook signature validation failed');
