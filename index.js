@@ -28,9 +28,10 @@ app.post('/api/videos', async (req, res) => {
         req.body
     );
 
-    // Persist video_id to your database for validation
-    // when webhook from Shakr is delivered to your
-    // desired endpoint.
+    // TODO: Persist video_id to your database for
+    // validation when webhook from Shakr is delivered to
+    // your desired endpoint.
+
     res.json({ video_id: video_id });
 });
 
@@ -47,11 +48,11 @@ app.post('/api/videos/webhook', async (req, res) => {
     const { video_id, event, output_url } = json_body;
 
     if(event === 'finish') {
-        // Video is successfully rendered, handle completion
+        // TODO: Video is successfully rendered, handle completion
     } else if(event === 'fail') {
-        // Video rendering failed, handle failure
+        // TODO: Video rendering failed, handle failure
     } else {
-        // Skip processing for unknown events
+        // TODO: Skip processing for unknown events
     }
 
     res.status(200).send();
