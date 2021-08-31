@@ -51,10 +51,6 @@ app.post('/api/videos', async (req, res) => {
 app.post('/api/videos/webhook', async (req, res) => {
     const signature = req.get('X-Shakr-Signature');
 
-    console.log(signature);
-    console.log(req);
-    console.log(req.body_str);
-
     if(
         signature === undefined ||
         req.body_str === "" ||
