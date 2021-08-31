@@ -14,7 +14,7 @@ const shakrAPI = new ShakrAPI({
     client_secret: process.env.SHAKR_CLIENT_SECRET
 });
 
-app.use(express.json());
+app.use(express.text({ type: '*/*' }));
 
 app.get('/', async (req, res) => {
     res.status(200).send('Hello World!');
@@ -31,4 +31,15 @@ app.post('/api/videos', async (req, res) => {
 
 require('https').createServer(options, app).listen(port, () => {
     console.log(`HTTPS server started at https://localhost:${port}`);
+});
+
+app.post('/api/videos/webhook', async (req, res) => {
+    const signature = req.get('X-Shakr-Signature');
+
+    if(!shakrAPI.verifySignature(signature, req.body)) {
+        console.log('Webhook signature validation failed');
+        return res.status(422).send();
+    }
+
+    res.status(200).send('bye');
 });
