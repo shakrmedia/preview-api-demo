@@ -1,12 +1,14 @@
 require('dotenv').config();
 
 const express = require('express');
+
 const ShakrAPI = require('./lib/shakr-api');
 const generateCertificate = require('./lib/certificate');
 
 const options = generateCertificate();
 const app = express();
 const port = process.env.PORT || 3000;
+const SHAKR_RENDER_CALLBACK_SIGNATURE_HEADER = 'x-shakr-signature';
 
 const shakrAPI = new ShakrAPI({
     base_url: process.env.SHAKR_BASE_URL,
@@ -16,19 +18,17 @@ const shakrAPI = new ShakrAPI({
 
 
 // Pare body as raw text for webhook signature calculation
-app.use(express.text({ 'type': '*/*' }));
-app.use((req, res, next) => {
-    // express.text() returns empty object ({}) when body is empty or invalid
-    req.body_str = (typeof req.body === "string") ? req.body : "";
+app.use(express.json({
+    verify: (req, _, buffer, encoding) => {
+        if (!req.headers[SHAKR_RENDER_CALLBACK_SIGNATURE_HEADER]) {
+            return;
+        }
 
-    try {
-        req.body_json = JSON.parse(req.body_str);
-    } catch(_e) {
-        req.body_json = {};
+        if (buffer && buffer.length) {
+            req.raw_body = buffer.toString(encoding || 'utf-8');
+        }
     }
-
-    next();
-});
+}));
 
 app.get('/', async (req, res) => {
     res.status(200).send('Hello World!');
@@ -37,7 +37,7 @@ app.get('/', async (req, res) => {
 app.post('/api/videos', async (req, res) => {
     const video_id = await shakrAPI.createVideo(
         process.env.SHAKR_TEMPLATE_STYLE_VERSION_ID,
-        req.body_json
+        req.body
     );
 
     // TODO: Persist video_id to your database for
@@ -49,19 +49,19 @@ app.post('/api/videos', async (req, res) => {
 });
 
 app.post('/api/videos/webhook', async (req, res) => {
-    const signature = req.get('X-Shakr-Signature');
+    const signature = req.get(SHAKR_RENDER_CALLBACK_SIGNATURE_HEADER);
 
     if(
         signature === undefined ||
-        req.body_str === "" ||
-        !shakrAPI.verifySignature(signature, req.body_str)
+        req.raw_body === "" ||
+        !shakrAPI.verifySignature(signature, req.raw_body)
     ) {
         console.log('Webhook signature validation failed');
         res.status(200).send();
         return;
     }
 
-    const { video_id, event, output_url } = req.body_json;
+    const { video_id, event, output_url } = req.body;
 
     if(event === 'finish') {
         console.log(`Received finish event for video ${video_id}`);
