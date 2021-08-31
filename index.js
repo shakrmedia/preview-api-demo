@@ -14,43 +14,45 @@ const shakrAPI = new ShakrAPI({
     client_secret: process.env.SHAKR_CLIENT_SECRET
 });
 
-// Store raw body for webhook signature calculation
-// Naive implementation; not intended for production use
+app.use(express.raw());
 app.use((req, res, next) => {
-    var data = '';
-    req.setEncoding('utf8');
-    req.on('data', (chunk) => data += chunk);
-    req.on('end', () => req.rawBody = data);
+    // express.raw() returns empty object ({}) when body is empty or invalid
+    req.body_str = Buffer.isBuffer(req.body) ? req.body.toString() : "";
+    req.body_json = Buffer.isBuffer(req.body) ? JSON.parse(req.body_str) : {};
+
     next();
 });
-
-app.use(express.json());
 
 app.get('/', async (req, res) => {
     res.status(200).send('Hello World!');
 });
 
 app.post('/api/videos', async (req, res) => {
-    console.log(req.body);
-
     const video_id = await shakrAPI.createVideo(
         process.env.SHAKR_TEMPLATE_STYLE_VERSION_ID,
-        req.body
+        req.body_json
     );
 
     // TODO: Persist video_id to your database for
     // validation when webhook from Shakr is delivered to
     // your desired endpoint.
 
+    console.log(`Video (${video_id}) created`);
     res.json({ video_id: video_id });
 });
 
 app.post('/api/videos/webhook', async (req, res) => {
     const signature = req.get('X-Shakr-Signature');
 
-    if(!shakrAPI.verifySignature(signature, req.body_raw || '')) {
+    const body_str = req.body === {} ? undefined : req.body.toString();
+
+    if(
+        signature === undefined ||
+        body_str === undefined ||
+        !shakrAPI.verifySignature(signature, body_str)
+    ) {
         console.log('Webhook signature validation failed');
-        res.status(422).send();
+        res.status(200).send();
         return;
     }
 
